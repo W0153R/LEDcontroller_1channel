@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html manifest="cache.manifest">
+<head>
+  <meta charset="utf-8">
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>paraplU</title>
+  <style>
+    *,::after,::before{box-sizing:border-box}body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line-height:1.42857143;color:#333;background-color:#fff;margin:0;padding:20px 0 40px 0}@media(min-width:768px){.container{width:750px}.col-sm-10,.col-sm-2,.col-sm-8{float:left}.col-sm-2{width:16.66666667%}.col-sm-8{width:66.66666667%}.col-sm-10{width:83.33333333%}.form-group{display:flex}}@media(min-width:992px){.container{width:970px}}@media(min-width:1200px){.container{width:1170px}}.container{padding-right:15px;padding-left:15px;margin-right:auto;margin-left:auto}.form-horizontal .form-group{margin-right:-15px;margin-left:-15px}.form-group{margin-bottom:15px}.form-horizontal .control-label{padding-top:7px;margin-bottom:0;text-align:right}.col-sm-10,.col-sm-2,.col-sm-8{position:relative;min-height:1px;padding-right:15px;padding-left:15px}label{display:inline-block;max-width:100%;font-weight:700}button,input{font-family:inherit;margin:0;font:inherit}button{-webkit-appearance:button;text-transform:none;overflow:visible}.btn{display:inline-block;padding:6px 12px;margin-bottom:0;font-size:14px;font-weight:400;line-height:1.42857143;text-align:center;white-space:nowrap;vertical-align:middle;-ms-touch-action:manipulation;touch-action:manipulation;cursor:pointer;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;background-image:none;border:1px solid transparent;border-radius:4px}.btn-primary{color:#fff;background-color:#337ab7;border-color:#2e6da4}.btn-default{color:#333;background-color:#fff;border-color:#ccc}.btn-group{position:relative;display:inline-block;vertical-align:middle}.btn-group>.btn:first-child:not(:last-child):not(.dropdown-toggle){border-top-right-radius:0;border-bottom-right-radius:0}.btn-group>.btn:last-child:not(:first-child){border-top-left-radius:0;border-bottom-left-radius:0}.btn-group>.btn{position:relative;float:left}.btn-group .btn+.btn{margin-left:-1px}.btn-group>.btn:first-child{margin-left:0}.form-control{display:block;width:100%;height:34px;padding:6px 12px;font-size:14px;line-height:1.42857143;color:#555;background-color:#fff;background-image:none;border:1px solid #ccc;border-radius:4px;-webkit-box-shadow:inset 0 1px 1px rgba(0,0,0,.075);box-shadow:inset 0 1px 1px rgba(0,0,0,.075);-webkit-transition:border-color ease-in-out .15s,-webkit-box-shadow ease-in-out .15s;-o-transition:border-color ease-in-out .15s,box-shadow ease-in-out .15s;transition:border-color ease-in-out .15s,box-shadow ease-in-out .15s}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <form class="form-horizontal">
+      <div id="power" class="form-group">
+        <label class="col-sm-2 control-label">Power</label>
+        <div class="col-sm-10">
+          <div class="btn-group">
+            <button type="button" class="btn btn-default">On</button>
+            <button type="button" class="btn btn-default">Off</button>
+          </div>
+        </div>
+      </div>
+      <div id="brightness" class="form-group">
+        <label class="col-sm-2 control-label">Brightness</label>
+        <div class="col-sm-2">
+          <input class="form-control" type="number" step="1" min="1" max="100" />
+        </div>
+        <div class="col-sm-8">
+          <input class="form-control" type="range" step="1" min="1" max="100" />
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    var setValueTimer = {};
+
+    function setPowerInput(val) {
+      var powerButtons = document.getElementById("power").getElementsByTagName("button");
+      var setButtonState = function(val) {
+        for (var i = 0; i < 2; i++) {
+          powerButtons[i].setAttribute("class", val == i ? "btn btn-default" : "btn btn-primary");
+        }
+      };
+      var switchPower = function(val) {
+        setButtonState(val);
+        setValue("power", val);
+      };
+      val = parseInt(val);
+      setButtonState(val);
+      for (var i = 0; i < 2; i++) {
+        powerButtons[i].pwr = i == 0 ? 1 : 0;
+        powerButtons[i].addEventListener("click", function(e) {
+          switchPower(e.target.pwr);
+        });
+      }
+    }
+
+    function setBrightnessInput(val) {
+      var brightnessInput = document.getElementById("brightness").getElementsByTagName("input");
+      brightnessInput[1].addEventListener("change mousemove", function() {
+        brightnessInput[0].value = this.value;
+      });
+      for (var i = 0, j = 1; i < 2; i++, j--) {
+        brightnessInput[i].value = val;
+        brightnessInput[i].sibling = brightnessInput[j];
+        brightnessInput[i].addEventListener("change", function(e) {
+          var value = this.value;
+          e.target.sibling.value = value;
+          delaySetValue("brightness", value);
+        });
+      }
+    }
+
+    function getValue(value, callback) {
+      var xhr = new XMLHttpRequest();
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState == 4 && xhr.status == 200)
+          callback(xhr.responseText);
+        }
+      xhr.open("GET", "/get?var=" + value, true);
+      xhr.send(null);
+    }
+
+    function requestURL(url) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", url, true);
+      xhr.send(null);
+    }
+
+    function setValue(name, value) {
+      requestURL("/set?var=" + name + "&val=" + value);
+    }
+
+    function delaySetValue(name, value) {
+      clearTimeout(setValueTimer);
+      setValueTimer = setTimeout(function() {
+        setValue(name, value);
+      }, 300);
+    }
+
+    window.onload = function() {
+      getValue("power",setPowerInput);
+      getValue("brightness",setBrightnessInput);
+    }
+  </script>
+</body>
+</html>
